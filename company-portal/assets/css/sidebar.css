@@ -1,0 +1,118 @@
+/* ── sidebar.css ─────────────────────────────────────────────
+   Sidebar navigation, user pill, profile dropdown, sync pill.
+   Include on EVERY page that has a sidebar.
+──────────────────────────────────────────────────────────── */
+
+/* ── Layout shell ── */
+.main { margin-left: var(--sidebar); flex: 1; display: flex; flex-direction: column; }
+
+/* ── Sidebar container ── */
+.sidebar {
+  width: var(--sidebar);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  position: fixed; top: 0; left: 0; bottom: 0;
+  z-index: 100;
+}
+
+/* ── Logo area ── */
+.sidebar-logo {
+  padding: 18px 16px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.logo-box {
+  width: 32px; height: 32px;
+  background: var(--accent);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.logo-box svg { width: 16px; height: 16px; }
+.logo-name { font-size: 14px; font-weight: 600; letter-spacing: -0.2px; }
+.logo-sub  { font-size: 10.5px; color: var(--text3); }
+
+/* ── Nav ── */
+.sidebar-nav { flex: 1; padding: 10px 8px; overflow-y: auto; }
+
+.nav-label {
+  font-size: 10px; font-weight: 500;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text3); padding: 8px 8px 4px;
+}
+
+.nav-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: var(--radius-sm);
+  cursor: pointer; color: var(--text2);
+  font-size: 13.5px; transition: all 0.12s;
+  margin-bottom: 1px; user-select: none;
+}
+.nav-item:hover  { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: var(--accent-l); color: var(--accent); font-weight: 500; }
+.nav-item svg    { width: 15px; height: 15px; flex-shrink: 0; }
+.nav-item.hidden { display: none; }
+
+.nav-badge {
+  margin-left: auto;
+  background: var(--red-l); color: var(--red);
+  font-size: 10px; font-weight: 600;
+  padding: 1px 6px; border-radius: 10px;
+}
+
+/* ── Footer ── */
+.sidebar-footer { border-top: 1px solid var(--border); padding: 10px 8px; position: relative; }
+
+.sync-pill {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text3);
+  padding: 6px 10px; margin-bottom: 4px;
+}
+.sync-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+  animation: blink 2s infinite;
+}
+
+/* ── User pill ── */
+.user-pill {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px; border-radius: var(--radius-sm);
+  cursor: pointer; transition: background 0.12s;
+}
+.user-pill:hover { background: var(--surface2); }
+
+.avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--accent-l); color: var(--accent);
+  font-size: 11px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.user-name {
+  font-size: 13px; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.user-role { font-size: 11px; color: var(--text3); }
+
+/* ── Profile dropdown ── */
+.profile-menu {
+  position: absolute; bottom: 90px; left: 8px; right: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  padding: 6px; display: none; z-index: 200;
+}
+.profile-menu.open { display: block; }
+
+.profile-menu-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: var(--radius-sm);
+  font-size: 13px; cursor: pointer; color: var(--text2);
+  transition: background 0.1s;
+}
+.profile-menu-item:hover         { background: var(--surface2); color: var(--text); }
+.profile-menu-item svg           { width: 14px; height: 14px; }
+.profile-menu-item.danger        { color: var(--red); }
+.profile-menu-item.danger:hover  { background: var(--red-l); }

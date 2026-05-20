@@ -1,0 +1,73 @@
+/* ── base.css ────────────────────────────────────────────────
+   Reset, CSS variables, body, typography, loading screen.
+   Include on EVERY page.
+──────────────────────────────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Surfaces */
+  --bg:       #F2F1ED;
+  --surface:  #FFFFFF;
+  --surface2: #F0EFE9;
+  --border:   #E2E0D8;
+  --border2:  #CCCAB8;
+
+  /* Text */
+  --text:     #1A1A18;
+  --text2:    #5C5B55;
+  --text3:    #9C9A90;
+
+  /* Accent — green */
+  --accent:   #1A5C3A;
+  --accent-l: #E8F2EC;
+  --accent-t: #2B7A50;
+
+  /* Semantic colours */
+  --red:      #C13030;
+  --red-l:    #FAEAEA;
+  --amber:    #B87010;
+  --amber-l:  #FEF4E0;
+  --blue:     #1A4A8C;
+  --blue-l:   #EAF0FB;
+
+  /* Misc */
+  --radius:    10px;
+  --radius-sm:  6px;
+  --shadow:    0 1px 3px rgba(0,0,0,0.07);
+  --font:      'DM Sans', sans-serif;
+  --mono:      'DM Mono', monospace;
+  --sidebar:   220px;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  font-size: 14px;
+}
+
+/* ── Loading screen ── */
+#loadingScreen {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 999;
+  flex-direction: column; gap: 16px;
+}
+.load-logo {
+  width: 44px; height: 44px;
+  background: var(--accent);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+.load-logo svg { width: 22px; height: 22px; }
+#loadingScreen p { font-size: 13px; color: var(--text3); }
+
+/* ── Animations ── */
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+@keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+@keyframes blink  { 0%,100%{opacity:1} 50%{opacity:0.3} }

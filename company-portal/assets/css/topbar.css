@@ -1,0 +1,39 @@
+/* ── topbar.css ──────────────────────────────────────────────
+   Topbar, action buttons, page animation shell.
+   Include on EVERY page that has a topbar.
+──────────────────────────────────────────────────────────── */
+
+/* ── Topbar ── */
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px; height: 54px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 50;
+}
+.topbar-title { font-size: 15px; font-weight: 600; }
+.topbar-sub   { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 500; font-family: var(--font);
+  cursor: pointer; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text);
+  transition: all 0.12s; white-space: nowrap;
+}
+.btn:hover       { background: var(--surface2); }
+.btn svg         { width: 13px; height: 13px; }
+
+.btn-primary       { background: var(--accent); color: white; border-color: var(--accent); }
+.btn-primary:hover { background: var(--accent-t); }
+
+.btn-danger        { background: var(--red-l); color: var(--red); border-color: #F0C0C0; }
+.btn-danger:hover  { background: #F5D0D0; }
+
+/* ── Page shell ── */
+.page          { display: none; animation: fadeIn 0.2s ease; }
+.page.active   { display: block; }
+.page-content  { padding: 24px; }
