@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DataPortal — Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #F2F1ED;
+    --surface:  #FFFFFF;
+    --surface2: #F0EFE9;
+    --border:   #E2E0D8;
+    --border2:  #CCCAB8;
+    --text:     #1A1A18;
+    --text2:    #5C5B55;
+    --text3:    #9C9A90;
+    --accent:   #1A5C3A;
+    --accent-l: #E8F2EC;
+    --accent-t: #2B7A50;
+    --red:      #C13030;
+    --red-l:    #FAEAEA;
+    --amber:    #B87010;
+    --amber-l:  #FEF4E0;
+    --blue:     #1A4A8C;
+    --blue-l:   #EAF0FB;
+    --radius:   10px;
+    --radius-sm:6px;
+    --shadow:   0 1px 3px rgba(0,0,0,0.07);
+    --font:     'DM Sans', sans-serif;
+    --mono:     'DM Mono', monospace;
+    --sidebar:  220px;
+  }
+
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; display: flex; font-size: 14px; }
+
+  /* ── LOADING SCREEN ── */
+  #loadingScreen {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 999;
+    flex-direction: column; gap: 16px;
+  }
+  .load-logo {
+    width: 44px; height: 44px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  .load-logo svg { width: 22px; height: 22px; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  #loadingScreen p { font-size: 13px; color: var(--text3); }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    position: fixed; top: 0; left: 0; bottom: 0;
+    z-index: 100;
+  }
+
+  .sidebar-logo {
+    padding: 18px 16px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo-box {
+    width: 32px; height: 32px; background: var(--accent);
+    border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .logo-box svg { width: 16px; height: 16px; }
+  .logo-name { font-size: 14px; font-weight: 600; letter-spacing: -0.2px; }
+  .logo-sub  { font-size: 10.5px; color: var(--text3); }
+
+  .sidebar-nav { flex: 1; padding: 10px 8px; overflow-y: auto; }
+
+  .nav-label {
+    font-size: 10px; font-weight: 500; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text3);
+    padding: 8px 8px 4px;
+  }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; border-radius: var(--radius-sm);
+    cursor: pointer; color: var(--text2);
+    font-size: 13.5px; transition: all 0.12s;
+    margin-bottom: 1px; user-select: none;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--accent-l); color: var(--accent); font-weight: 500; }
+  .nav-item svg { width: 15px; height: 15px; flex-shrink: 0; }
+  .nav-item.hidden { display: none; }
+
+  .nav-badge {
+    margin-left: auto; background: var(--red-l); color: var(--red);
+    font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 10px;
+  }
+
+  .sidebar-footer { border-top: 1px solid var(--border); padding: 10px 8px; }
+
+  .sync-pill {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--text3); padding: 6px 10px; margin-bottom: 4px;
+  }
+  .sync-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+    animation: blink 2s infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .user-pill {
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 10px; border-radius: var(--radius-sm);
+    cursor: pointer; transition: background 0.12s;
+  }
+  .user-pill:hover { background: var(--surface2); }
+  .avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent-l); color: var(--accent);
+    font-size: 11px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .user-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-role { font-size: 11px; color: var(--text3); }
+
+  /* ── MAIN ── */
+  .main { margin-left: var(--sidebar); flex: 1; display: flex; flex-direction: column; }
+
+  .topbar {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 0 24px; height: 54px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .topbar-left { }
+  .topbar-title { font-size: 15px; font-weight: 600; }
+  .topbar-sub   { font-size: 11px; color: var(--text3); margin-top: 1px; }
+  .topbar-right { display: flex; align-items: center; gap: 8px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500; font-family: var(--font);
+    cursor: pointer; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text);
+    transition: all 0.12s; white-space: nowrap;
+  }
+  .btn:hover { background: var(--surface2); }
+  .btn svg { width: 13px; height: 13px; }
+  .btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .btn-primary:hover { background: var(--accent-t); }
+  .btn-danger  { background: var(--red-l); color: var(--red); border-color: #F0C0C0; }
+  .btn-danger:hover { background: #F5D0D0; }
+
+  /* ── PAGES ── */
+  .page { display: none; padding: 24px; animation: fadeIn 0.2s ease; }
+  .page.active { display: block; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+
+  /* ── STATS ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px; margin-bottom: 22px;
+  }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow);
+  }
+  .stat-label { font-size: 11px; color: var(--text3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .stat-value { font-size: 24px; font-weight: 600; letter-spacing: -0.5px; }
+  .stat-sub   { font-size: 11.5px; color: var(--text3); margin-top: 4px; }
+  .stat-card.warn  { border-color: #F0D090; background: #FFFBF0; }
+  .stat-card.warn .stat-value { color: var(--amber); }
+  .stat-card.danger{ border-color: #F0C0A0; background: #FFF8F3; }
+  .stat-card.danger .stat-value { color: var(--red); }
+
+  /* ── TABLE ── */
+  .table-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    overflow: hidden; margin-bottom: 22px;
+  }
+  .table-header {
+    padding: 13px 18px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 10px;
+  }
+  .table-title { font-size: 13.5px; font-weight: 600; }
+  .table-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  .search-box {
+    display: flex; align-items: center; gap: 7px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 6px 11px;
+  }
+  .search-box svg { width: 13px; height: 13px; color: var(--text3); }
+  .search-box input {
+    border: none; background: transparent; font-family: var(--font);
+    font-size: 13px; color: var(--text); outline: none; width: 160px;
+  }
+  .search-box input::placeholder { color: var(--text3); }
+
+  .filter-sel {
+    font-family: var(--font); font-size: 13px; color: var(--text);
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 6px 10px; outline: none; cursor: pointer;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    text-align: left; padding: 9px 18px;
+    font-size: 10.5px; font-weight: 600; color: var(--text3);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    border-bottom: 1px solid var(--border); background: var(--surface2);
+    white-space: nowrap;
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; cursor: pointer; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td { padding: 10px 18px; vertical-align: middle; }
+  .mono { font-family: var(--mono); font-size: 12px; color: var(--text2); }
+
+  /* ── BADGES ── */
+  .badge {
+    display: inline-block; padding: 2px 9px;
+    border-radius: 20px; font-size: 11px; font-weight: 600;
+  }
+  .b-green  { background: #E4F5EA; color: #1A6B34; }
+  .b-amber  { background: var(--amber-l); color: var(--amber); }
+  .b-red    { background: var(--red-l); color: var(--red); }
+  .b-gray   { background: var(--surface2); color: var(--text3); }
+  .b-blue   { background: var(--blue-l); color: var(--blue); }
+  .b-purple { background: #EDE8FB; color: #4A2DAA; }
+
+  /* ── QUICK CARDS ── */
+  .quick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px,1fr)); gap: 12px; margin-bottom: 22px; }
+  .quick-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px;
+    cursor: pointer; transition: all 0.15s; box-shadow: var(--shadow);
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .quick-card:hover { border-color: var(--border2); box-shadow: 0 4px 12px rgba(0,0,0,0.08); transform: translateY(-1px); }
+  .q-icon {
+    width: 36px; height: 36px; border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .q-icon svg { width: 17px; height: 17px; }
+  .q-icon.green { background: var(--accent-l); color: var(--accent); }
+  .q-icon.blue  { background: var(--blue-l); color: var(--blue); }
+  .q-icon.amber { background: var(--amber-l); color: var(--amber); }
+  .q-icon.red   { background: var(--red-l); color: var(--red); }
+  .q-label { font-size: 13.5px; font-weight: 500; margin-bottom: 2px; }
+  .q-desc  { font-size: 11.5px; color: var(--text3); }
+
+  /* ── ALERT ── */
+  .alert {
+    border-radius: var(--radius); padding: 12px 16px;
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 18px; font-size: 13px;
+  }
+  .alert svg { width: 15px; height: 15px; flex-shrink: 0; }
+  .alert.warn { background: var(--amber-l); border: 1px solid #F0D090; color: var(--amber); }
+  .alert.info { background: var(--blue-l); border: 1px solid #B0C8F0; color: var(--blue); }
+
+  /* ── SECTION ── */
+  .section-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .section-title { font-size: 13px; font-weight: 600; color: var(--text2); }
+
+  /* ── PAGINATION ── */
+  .pagination {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 11px 18px; border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--text3);
+  }
+  .page-btns { display: flex; gap: 4px; }
+  .page-btn {
+    padding: 3px 9px; border-radius: 4px; border: 1px solid var(--border);
+    background: var(--surface); font-size: 12px; cursor: pointer;
+    font-family: var(--font); color: var(--text); transition: background 0.1s;
+  }
+  .page-btn:hover { background: var(--surface2); }
+  .page-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+  /* ── MODAL ── */
+  .overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.3); z-index: 200;
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border-radius: var(--radius);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.16);
+    width: 460px; max-width: 100%; max-height: 85vh; overflow-y: auto;
+  }
+  .modal-hdr {
+    padding: 18px 20px 14px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-title { font-size: 15px; font-weight: 600; }
+  .modal-close { cursor: pointer; color: var(--text3); padding: 4px; border-radius: 4px; line-height:1; font-size:18px; }
+  .modal-close:hover { background: var(--surface2); }
+  .modal-body { padding: 18px 20px; }
+  .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+
+  .form-group { margin-bottom: 15px; }
+  .form-label { display: block; font-size: 11.5px; font-weight: 500; color: var(--text2); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .form-input {
+    width: 100%; padding: 8px 12px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-family: var(--font); font-size: 13px; color: var(--text);
+    background: var(--surface); outline: none; transition: border-color 0.15s;
+  }
+  .form-input:focus { border-color: var(--accent); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* ── PROFILE DROPDOWN ── */
+  .profile-menu {
+    position: absolute; bottom: 90px; left: 8px; right: 8px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    padding: 6px; display: none; z-index: 200;
+  }
+  .profile-menu.open { display: block; }
+  .profile-menu-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; border-radius: var(--radius-sm);
+    font-size: 13px; cursor: pointer; color: var(--text2);
+    transition: background 0.1s;
+  }
+  .profile-menu-item:hover { background: var(--surface2); color: var(--text); }
+  .profile-menu-item svg { width: 14px; height: 14px; }
+  .profile-menu-item.danger { color: var(--red); }
+  .profile-menu-item.danger:hover { background: var(--red-l); }
+
+  /* ── WELCOME BANNER ── */
+  .welcome-banner {
+    background: var(--accent); color: white;
+    border-radius: var(--radius); padding: 18px 22px;
+    margin-bottom: 20px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .welcome-title { font-size: 16px; font-weight: 600; margin-bottom: 3px; }
+  .welcome-sub   { font-size: 12.5px; opacity: 0.8; }
+  .welcome-icon  { opacity: 0.3; }
+  .welcome-icon svg { width: 48px; height: 48px; }
+
+  /* ── INVENTORY STOCK BAR ── */
+  .stock-bar { width: 80px; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .stock-fill { height: 100%; border-radius: 3px; }
+  .sf-ok    { background: var(--accent); }
+  .sf-low   { background: var(--amber); }
+  .sf-empty { background: var(--red); }
+
+  /* ── ROLE TAG ── */
+  .role-tag { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .rt-admin     { background: #EDE8FB; color: #4A2DAA; }
+  .rt-finance   { background: var(--blue-l); color: var(--blue); }
+  .rt-sales     { background: var(--accent-l); color: var(--accent); }
+  .rt-warehouse { background: var(--amber-l); color: var(--amber); }
+
+  /* ── EMPTY STATE ── */
+  .empty { text-align:center; padding: 40px 24px; color: var(--text3); }
+  .empty svg { width: 36px; height: 36px; margin: 0 auto 10px; opacity: 0.35; display: block; }
+  .empty p { font-size: 13px; }
+
+  /* ── NO ACCESS ── */
+  .no-access {
+    text-align: center; padding: 60px 24px; color: var(--text3);
+  }
+  .no-access svg { width: 40px; height: 40px; margin: 0 auto 14px; display: block; opacity: 0.4; }
+  .no-access h3 { font-size: 15px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+  .no-access p { font-size: 13px; }
+</style>
+</head>
+<body>
+
+<!-- Loading screen -->
+<div id="loadingScreen">
+  <div class="load-logo">
+    <svg viewBox="0 0 22 22" fill="none">
+      <rect x="1" y="1" width="8" height="8" rx="2" fill="white"/>
+      <rect x="13" y="1" width="8" height="8" rx="2" fill="white" opacity=".7"/>
+      <rect x="1" y="13" width="8" height="8" rx="2" fill="white" opacity=".7"/>
+      <rect x="13" y="13" width="8" height="8" rx="2" fill="white" opacity=".4"/>
+    </svg>
+  </div>
+  <p>Loading your portal...</p>
+</div>
+
+<!-- ══ SIDEBAR ══ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-box">
+      <svg viewBox="0 0 22 22" fill="none">
+        <rect x="1" y="1" width="8" height="8" rx="2" fill="white"/>
+        <rect x="13" y="1" width="8" height="8" rx="2" fill="white" opacity=".7"/>
+        <rect x="1" y="13" width="8" height="8" rx="2" fill="white" opacity=".7"/>
+        <rect x="13" y="13" width="8" height="8" rx="2" fill="white" opacity=".4"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-name">DataPortal</div>
+      <div class="logo-sub">Management System</div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-label">Main</div>
+    <div class="nav-item active" onclick="showPage('dashboard',this)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="9" y="1" width="6" height="6" rx="1.5"/><rect x="1" y="9" width="6" height="6" rx="1.5"/><rect x="9" y="9" width="6" height="6" rx="1.5"/></svg>
+      Dashboard
+    </div>
+
+    <div class="nav-label" style="margin-top:6px">Data</div>
+    <div class="nav-item" id="nav-customers" onclick="showPage('customers',this)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="3"/><path d="M1 14c0-3 2.5-5 5-5s5 2 5 5"/><path d="M11 2a3 3 0 0 1 0 6"/><path d="M15 14c0-3-1.5-4.5-4-5"/></svg>
+      Customers
+    </div>
+    <div class="nav-item" id="nav-invoices" onclick="showPage('invoices',this)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 1h8a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"/><path d="M5 5h6M5 8h6M5 11h4"/></svg>
+      Invoices
+      <span class="nav-badge" id="overdue-badge" style="display:none">!</span>
+    </div>
+    <div class="nav-item" id="nav-orders" onclick="showPage('orders',this)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l1.5-2h9L14 4v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4z"/><path d="M5 7h6M5 10h4"/></svg>
+      Sales Orders
+    </div>
+    <div class="nav-item" id="nav-inventory" onclick="showPage('inventory',this)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="8" width="14" height="7" rx="1"/><rect x="3" y="4" width="10" height="4" rx="1"/><rect x="5" y="1" width="6" height="3" rx="1"/></svg>
+      Inventory
+    </div>
+
+    <div class="nav-label" style="margin-top:6px">Reports</div>
+    <div class="nav-item" onclick="showPage('reports',this)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="14" height="14" rx="2"/><path d="M4 10l2.5-3 2.5 2 3-4"/></svg>
+      Power BI
+    </div>
+
+    <div class="nav-label" id="admin-nav-label" style="margin-top:6px;display:none">Admin</div>
+    <div class="nav-item hidden" id="nav-users" onclick="showPage('users',this)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3.5"/><path d="M1 15c0-4 3-6 7-6s7 2 7 6"/></svg>
+      User Management
+    </div>
+    <div class="nav-item hidden" id="nav-sync" onclick="showPage('sync',this)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 8A6 6 0 0 1 2.5 11M2 8A6 6 0 0 1 13.5 5"/><path d="M14 5v3h-3M2 11v-3h3"/></svg>
+      Sync Logs
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="sync-pill">
+      <div class="sync-dot"></div>
+      <span id="syncStatus">AutoCount not configured</span>
+    </div>
+    <div class="user-pill" onclick="toggleProfileMenu()">
+      <div class="avatar" id="userAvatar">--</div>
+      <div style="min-width:0">
+        <div class="user-name" id="userName">Loading...</div>
+        <div class="user-role" id="userRoleLabel">—</div>
+      </div>
+    </div>
+    <!-- Profile dropdown -->
+    <div class="profile-menu" id="profileMenu">
+      <div class="profile-menu-item" onclick="showPage('profile',null)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3.5"/><path d="M1 15c0-4 3-6 7-6s7 2 7 6"/></svg>
+        My Profile
+      </div>
+      <div class="profile-menu-item danger" onclick="handleSignOut()">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 8h8M11 5l3 3-3 3"/><path d="M6 3H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3"/></svg>
+        Sign Out
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ══ MAIN ══ -->
+<main class="main">
+
+  <!-- ── DASHBOARD ── -->
+  <div id="page-dashboard" class="page active">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-title">Dashboard</div>
+        <div class="topbar-sub" id="todayDate"></div>
+      </div>
+    </div>
+    <div style="padding:24px">
+      <div class="welcome-banner" id="welcomeBanner">
+        <div>
+          <div class="welcome-title" id="welcomeTitle">Good morning!</div>
+          <div class="welcome-sub" id="welcomeSub">Here's what's happening today.</div>
+        </div>
+        <div class="welcome-icon">
+          <svg viewBox="0 0 48 48" fill="none" stroke="white" stroke-width="2">
+            <rect x="4" y="4" width="18" height="18" rx="4"/><rect x="26" y="4" width="18" height="18" rx="4"/>
+            <rect x="4" y="26" width="18" height="18" rx="4"/><rect x="26" y="26" width="18" height="18" rx="4"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Admin/Finance stats -->
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card"><div class="stat-label">Total Invoices</div><div class="stat-value" id="stat-invoices">—</div><div class="stat-sub">This month</div></div>
+        <div class="stat-card"><div class="stat-label">Customers</div><div class="stat-value" id="stat-customers">—</div><div class="stat-sub">Active accounts</div></div>
+        <div class="stat-card"><div class="stat-label">Sales Orders</div><div class="stat-value" id="stat-orders">—</div><div class="stat-sub">Open orders</div></div>
+        <div class="stat-card danger" id="stat-overdue-card"><div class="stat-label">Overdue</div><div class="stat-value" id="stat-overdue">—</div><div class="stat-sub">Invoices past due</div></div>
+        <div class="stat-card warn" id="stat-stock-card"><div class="stat-label">Low Stock</div><div class="stat-value" id="stat-stock">—</div><div class="stat-sub">Items need reorder</div></div>
+      </div>
+
+      <div class="section-hdr">
+        <div class="section-title">Quick Access</div>
+      </div>
+      <div class="quick-grid" id="quickGrid">
+        <!-- Populated by JS based on role -->
+      </div>
+
+      <div class="section-hdr">
+        <div class="section-title">Recent Activity</div>
+        <div style="font-size:12px;color:var(--text3)">Dummy data — connect AutoCount in Phase 2</div>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Type</th><th>Reference</th><th>Customer / Item</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge b-blue">Invoice</span></td><td class="mono">INV-2026-0001</td><td>Syarikat Maju Sdn Bhd</td><td>RM 12,400</td><td><span class="badge b-green">Paid</span></td><td>17 May 2026</td></tr>
+            <tr><td><span class="badge b-green">Order</span></td><td class="mono">SO-2026-0001</td><td>Global Tech Solutions</td><td>RM 8,750</td><td><span class="badge b-blue">Confirmed</span></td><td>16 May 2026</td></tr>
+            <tr><td><span class="badge b-blue">Invoice</span></td><td class="mono">INV-2026-0002</td><td>Prima Industries Bhd</td><td>RM 24,800</td><td><span class="badge b-red">Overdue</span></td><td>14 May 2026</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CUSTOMERS ── -->
+  <div id="page-customers" class="page">
+    <div class="topbar">
+      <div class="topbar-left"><div class="topbar-title">Customers</div><div class="topbar-sub">Synced from AutoCount</div></div>
+    </div>
+    <div style="padding:24px" id="customers-content">
+      <div class="no-access">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <h3>Access Restricted</h3>
+        <p>Your role does not have access to customer data.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── INVOICES ── -->
+  <div id="page-invoices" class="page">
+    <div class="topbar">
+      <div class="topbar-left"><div class="topbar-title">Invoices</div><div class="topbar-sub">Synced from AutoCount</div></div>
+      <div class="topbar-right">
+        <button class="btn">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8l5-5 5 5"/></svg>
+          Export CSV
+        </button>
+      </div>
+    </div>
+    <div style="padding:24px" id="invoices-content">
+      <div class="no-access">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <h3>Access Restricted</h3>
+        <p>Your role does not have access to invoice data.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ORDERS ── -->
+  <div id="page-orders" class="page">
+    <div class="topbar">
+      <div class="topbar-left"><div class="topbar-title">Sales Orders</div><div class="topbar-sub">Synced from AutoCount</div></div>
+      <div class="topbar-right">
+        <button class="btn btn-primary" onclick="openModal('addOrderModal')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v12M2 8h12"/></svg>
+          New Order
+        </button>
+      </div>
+    </div>
+    <div style="padding:24px" id="orders-content">
+      <div class="no-access">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <h3>Access Restricted</h3>
+        <p>Your role does not have access to sales orders.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── INVENTORY ── -->
+  <div id="page-inventory" class="page">
+    <div class="topbar">
+      <div class="topbar-left"><div class="topbar-title">Inventory</div><div class="topbar-sub">Synced from AutoCount every 30 min</div></div>
+    </div>
+    <div style="padding:24px" id="inventory-content">
+      <div class="no-access">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <h3>Access Restricted</h3>
+        <p>Your role does not have access to inventory data.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── POWER BI ── -->
+  <div id="page-reports" class="page">
+    <div class="topbar">
+      <div class="topbar-left"><div class="topbar-title">Power BI Reports</div></div>
+    </div>
+    <div style="padding:24px">
+      <div class="table-card" style="padding:48px 24px;text-align:center">
+        <svg viewBox="0 0 64 64" fill="none" style="width:48px;height:48px;margin:0 auto 16px;display:block">
+          <rect width="64" height="64" rx="12" fill="#F2C811"/>
+          <rect x="12" y="32" width="10" height="20" rx="2" fill="#1A1A18"/>
+          <rect x="26" y="20" width="10" height="32" rx="2" fill="#1A1A18" opacity=".8"/>
+          <rect x="40" y="12" width="10" height="40" rx="2" fill="#1A1A18" opacity=".6"/>
+        </svg>
+        <div style="font-size:16px;font-weight:600;margin-bottom:8px">Power BI Dashboard</div>
+        <div style="font-size:13px;color:var(--text3);max-width:380px;margin:0 auto 20px">Connect Power BI Desktop to Supabase PostgreSQL to embed live reports. See README for connection details.</div>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+          <button class="btn btn-primary">Open Power BI →</button>
+          <button class="btn" onclick="openModal('pbiModal')">Connection Details</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── USER MANAGEMENT (Admin only) ── -->
+  <div id="page-users" class="page">
+    <div class="topbar">
+      <div class="topbar-left"><div class="topbar-title">User Management</div><div class="topbar-sub">Admin access only</div></div>
+      <div class="topbar-right">
+        <button class="btn btn-primary" onclick="openModal('addUserModal')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v12M2 8h12"/></svg>
+          Add User
+        </button>
+      </div>
+    </div>
+    <div style="padding:24px">
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">Staff Accounts</div>
+          <div class="table-tools">
+            <div class="search-box">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l4 4"/></svg>
+              <input type="text" placeholder="Search staff..." oninput="filterUsers(this.value)"/>
+            </div>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th>Last Login</th><th>Status</th><th></th></tr></thead>
+          <tbody id="users-tbody">
+            <tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Loading users...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SYNC LOGS ── -->
+  <div id="page-sync" class="page">
+    <div class="topbar">
+      <div class="topbar-left"><div class="topbar-title">Sync Logs</div><div class="topbar-sub">AutoCount sync history</div></div>
+    </div>
+    <div style="padding:24px">
+      <div class="alert info" style="margin-bottom:20px">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="7"/><path d="M8 5v4M8 11v.5"/></svg>
+        AutoCount sync will be configured in Phase 2. Logs will appear here once the sync script is running.
+      </div>
+      <div class="table-card">
+        <div class="table-header"><div class="table-title">Sync History</div></div>
+        <div class="empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 8A6 6 0 0 1 2.5 11M2 8A6 6 0 0 1 13.5 5"/><path d="M14 5v3h-3M2 11v-3h3"/></svg>
+          <p>No sync logs yet. Configure AutoCount in Phase 2.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PROFILE ── -->
+  <div id="page-profile" class="page">
+    <div class="topbar">
+      <div class="topbar-left"><div class="topbar-title">My Profile</div></div>
+      <div class="topbar-right">
+        <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
+      </div>
+    </div>
+    <div style="padding:24px;max-width:520px">
+      <div class="table-card" style="padding:24px">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border)">
+          <div class="avatar" id="profileAvatar" style="width:52px;height:52px;font-size:16px">--</div>
+          <div>
+            <div style="font-size:16px;font-weight:600" id="profileName">—</div>
+            <div style="font-size:12px;color:var(--text3)" id="profileRole">—</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input class="form-input" type="text" id="profileFullName" placeholder="Your name"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input class="form-input" type="email" id="profileEmail" readonly style="background:var(--surface2)"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <input class="form-input" type="text" id="profilePhone" placeholder="01X-XXXXXXXX"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">User ID</label>
+          <input class="form-input" readonly id="profileUserId" style="font-family:var(--mono);font-size:12px;background:var(--surface2)"/>
+        </div>
+        <div id="profileMsg" style="display:none;margin-top:12px;font-size:13px;padding:10px 14px;border-radius:8px"></div>
+      </div>
+    </div>
+  </div>
+
+</main><!-- end .main -->
+
+<!-- ══ MODALS ══ -->
+
+<!-- Add User -->
+<div class="overlay" id="addUserModal" onclick="closeOnOverlay(event,'addUserModal')">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">Add New Staff User</div>
+      <div class="modal-close" onclick="closeModal('addUserModal')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div class="alert info" style="margin-bottom:16px">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="7"/><path d="M8 5v4M8 11v.5"/></svg>
+        First create the user in <strong>Supabase Auth → Users</strong>, then paste their UUID here.
+      </div>
+      <div class="form-group">
+        <label class="form-label">Auth UUID (from Supabase)</label>
+        <input class="form-input" type="text" id="newUserId" placeholder="paste-uuid-here" style="font-family:var(--mono);font-size:12px"/>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Full Name</label><input class="form-input" type="text" id="newUserName" placeholder="Full Name"/></div>
+        <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" id="newUserEmail" placeholder="email@company.com"/></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Role</label>
+          <select class="form-input" id="newUserRole">
+            <option value="finance">Finance</option>
+            <option value="sales">Sales</option>
+            <option value="warehouse">Warehouse</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Department / Agent Code</label><input class="form-input" type="text" id="newUserDept" placeholder="e.g. AG01, Finance"/></div>
+      </div>
+      <div id="addUserMsg" style="display:none;margin-top:4px;font-size:13px;padding:10px 14px;border-radius:8px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('addUserModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addUser()">Create User</button>
+    </div>
+  </div>
+</div>
+
+<!-- Power BI connection -->
+<div class="overlay" id="pbiModal" onclick="closeOnOverlay(event,'pbiModal')">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">Power BI Connection Details</div>
+      <div class="modal-close" onclick="closeModal('pbiModal')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:16px">Use these in Power BI Desktop → Get Data → PostgreSQL.</div>
+      <div class="form-group"><label class="form-label">Server</label><input class="form-input" value="db.ojojzrrtclsrzwsvboyx.supabase.co" readonly style="font-family:var(--mono);font-size:12px;background:var(--surface2)"/></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Port</label><input class="form-input" value="5432" readonly style="font-family:var(--mono);font-size:12px;background:var(--surface2)"/></div>
+        <div class="form-group"><label class="form-label">Database</label><input class="form-input" value="postgres" readonly style="font-family:var(--mono);font-size:12px;background:var(--surface2)"/></div>
+      </div>
+      <div class="alert warn" style="margin-top:8px">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="7"/><path d="M8 5v4M8 11v.5"/></svg>
+        Use your Supabase database password. Create a read-only role for Power BI for best security.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('pbiModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── SUPABASE ────────────────────────────────────────────────
+const SUPABASE_URL = 'https://ojojzrrtclsrzwsvboyx.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qb2p6cnJ0Y2xzcnp3c3Zib3l4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMjc3MTAsImV4cCI6MjA5NDcwMzcxMH0.uU5rTuhAO0FHcZOR_Tr2uo4RMXamwc4T-r8xbGC9PIk';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let currentProfile = null;
+
+// ── INIT ────────────────────────────────────────────────────
+window.addEventListener('load', async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = 'login.html'; return; }
+
+  currentUser = session.user;
+
+  // Load profile from public.users
+  const { data: profile, error } = await sb.from('users')
+    .select('*')
+    .eq('id', currentUser.id)
+    .single();
+
+  if (error || !profile) { window.location.href = 'login.html'; return; }
+  if (!profile.is_active) { await sb.auth.signOut(); window.location.href = 'login.html'; return; }
+
+  currentProfile = profile;
+  initUI(profile);
+  loadDashboardStats(profile);
+  document.getElementById('loadingScreen').style.display = 'none';
+});
+
+// ── INIT UI BASED ON ROLE ───────────────────────────────────
+function initUI(profile) {
+  const role = profile.role;
+  const initials = profile.full_name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
+
+  // User info
+  document.getElementById('userAvatar').textContent     = initials;
+  document.getElementById('userName').textContent       = profile.full_name;
+  document.getElementById('userRoleLabel').textContent  = role.charAt(0).toUpperCase() + role.slice(1);
+  document.getElementById('profileAvatar').textContent  = initials;
+  document.getElementById('profileName').textContent    = profile.full_name;
+  document.getElementById('profileRole').textContent    = role + (profile.department ? ' — ' + profile.department : '');
+  document.getElementById('profileFullName').value      = profile.full_name;
+  document.getElementById('profileEmail').value         = profile.email;
+  document.getElementById('profilePhone').value         = profile.phone || '';
+  document.getElementById('profileUserId').value        = profile.user_id || '—';
+
+  // Date
+  document.getElementById('todayDate').textContent = new Date().toLocaleDateString('en-MY', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  // Welcome message
+  const hr = new Date().getHours();
+  const greeting = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+  document.getElementById('welcomeTitle').textContent = greeting + ', ' + profile.full_name.split(' ')[0] + '!';
+
+  // Role-based sub text
+  const subMap = {
+    admin: 'You have full system access. Here\'s the company overview.',
+    finance: 'Here\'s your financial summary for today.',
+    sales: 'Here\'s your sales activity for today.',
+    warehouse: 'Here\'s the inventory and order status.'
+  };
+  document.getElementById('welcomeSub').textContent = subMap[role] || 'Here\'s your dashboard.';
+
+  // Show/hide nav items by role
+  const navAccess = {
+    admin:     ['customers','invoices','orders','inventory','users','sync'],
+    finance:   ['customers','invoices','orders'],
+    sales:     ['customers','invoices','orders','inventory'],
+    warehouse: ['orders','inventory']
+  };
+  const allowed = navAccess[role] || [];
+  allowed.forEach(id => {
+    const el = document.getElementById('nav-' + id);
+    if (el) el.classList.remove('hidden');
+  });
+
+  // Show admin section label
+  if (role === 'admin') {
+    document.getElementById('admin-nav-label').style.display = '';
+  }
+
+  // Quick cards by role
+  buildQuickCards(role);
+
+  // Load page content based on role
+  loadCustomersPage(role);
+  loadInvoicesPage(role);
+  loadOrdersPage(role);
+  loadInventoryPage(role);
+  if (role === 'admin') loadUsersPage();
+}
+
+// ── QUICK CARDS ─────────────────────────────────────────────
+function buildQuickCards(role) {
+  const cards = {
+    admin: [
+      { icon:'green', label:'Customers', desc:'View all accounts', page:'customers', svg:'<circle cx="6" cy="5" r="3"/><path d="M1 14c0-3 2.5-5 5-5s5 2 5 5"/><path d="M11 2a3 3 0 0 1 0 6"/><path d="M15 14c0-3-1.5-4.5-4-5"/>' },
+      { icon:'blue',  label:'Invoices',  desc:'Track payments & dues', page:'invoices', svg:'<path d="M4 1h8a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"/><path d="M5 5h6M5 8h6M5 11h4"/>' },
+      { icon:'amber', label:'Inventory', desc:'Stock levels & alerts', page:'inventory', svg:'<rect x="1" y="8" width="14" height="7" rx="1"/><rect x="3" y="4" width="10" height="4" rx="1"/><rect x="5" y="1" width="6" height="3" rx="1"/>' },
+      { icon:'red',   label:'Users',     desc:'Manage staff access', page:'users', svg:'<circle cx="8" cy="5" r="3.5"/><path d="M1 15c0-4 3-6 7-6s7 2 7 6"/>' },
+    ],
+    finance: [
+      { icon:'blue',  label:'Invoices',  desc:'All invoices & payments', page:'invoices', svg:'<path d="M4 1h8a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"/><path d="M5 5h6M5 8h6M5 11h4"/>' },
+      { icon:'green', label:'Customers', desc:'Credit & balance info', page:'customers', svg:'<circle cx="6" cy="5" r="3"/><path d="M1 14c0-3 2.5-5 5-5s5 2 5 5"/>' },
+      { icon:'amber', label:'Orders',    desc:'Sales order tracking', page:'orders', svg:'<path d="M2 4l1.5-2h9L14 4v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4z"/><path d="M5 7h6"/>' },
+    ],
+    sales: [
+      { icon:'blue',  label:'My Invoices', desc:'Your sales invoices', page:'invoices', svg:'<path d="M4 1h8a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"/><path d="M5 5h6M5 8h6M5 11h4"/>' },
+      { icon:'green', label:'Customers',   desc:'Your customer accounts', page:'customers', svg:'<circle cx="6" cy="5" r="3"/><path d="M1 14c0-3 2.5-5 5-5s5 2 5 5"/>' },
+      { icon:'amber', label:'Orders',      desc:'Create & track orders', page:'orders', svg:'<path d="M2 4l1.5-2h9L14 4v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4z"/><path d="M5 7h6"/>' },
+      { icon:'red',   label:'Inventory',   desc:'Check stock availability', page:'inventory', svg:'<rect x="1" y="8" width="14" height="7" rx="1"/><rect x="3" y="4" width="10" height="4" rx="1"/>' },
+    ],
+    warehouse: [
+      { icon:'amber', label:'Inventory', desc:'Stock levels & updates', page:'inventory', svg:'<rect x="1" y="8" width="14" height="7" rx="1"/><rect x="3" y="4" width="10" height="4" rx="1"/><rect x="5" y="1" width="6" height="3" rx="1"/>' },
+      { icon:'blue',  label:'Orders',   desc:'Pending deliveries', page:'orders', svg:'<path d="M2 4l1.5-2h9L14 4v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4z"/><path d="M5 7h6"/>' },
+    ],
+  };
+  const list = cards[currentProfile.role] || [];
+  document.getElementById('quickGrid').innerHTML = list.map(c => `
+    <div class="quick-card" onclick="showPage('${c.page}',null)">
+      <div class="q-icon ${c.icon}">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">${c.svg}</svg>
+      </div>
+      <div>
+        <div class="q-label">${c.label}</div>
+        <div class="q-desc">${c.desc}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── LOAD DASHBOARD STATS ────────────────────────────────────
+async function loadDashboardStats(profile) {
+  const role = profile.role;
+
+  // Count invoices
+  if (['admin','finance','sales'].includes(role)) {
+    let q = sb.from('invoices').select('*', { count:'exact', head:true });
+    if (role === 'sales') q = q.eq('sales_agent', profile.department);
+    const { count } = await q;
+    document.getElementById('stat-invoices').textContent = count ?? 0;
+
+    // Overdue
+    let oq = sb.from('invoices').select('*', { count:'exact', head:true })
+      .lt('due_date', new Date().toISOString().split('T')[0])
+      .not('status', 'in', '("paid","cancelled")');
+    if (role === 'sales') oq = oq.eq('sales_agent', profile.department);
+    const { count: oc } = await oq;
+    document.getElementById('stat-overdue').textContent = oc ?? 0;
+    if (oc > 0) {
+      document.getElementById('overdue-badge').style.display = '';
+      document.getElementById('overdue-badge').textContent = oc;
+    }
+  } else {
+    document.getElementById('stat-overdue-card').style.display = 'none';
+  }
+
+  // Count customers
+  if (['admin','finance','sales'].includes(role)) {
+    const { count } = await sb.from('customers').select('*', { count:'exact', head:true }).eq('is_active', true);
+    document.getElementById('stat-customers').textContent = count ?? 0;
+  } else {
+    document.getElementById('stat-customers').textContent = '—';
+  }
+
+  // Count orders
+  const { count: oc } = await sb.from('sales_orders').select('*', { count:'exact', head:true }).not('status', 'in', '("delivered","cancelled")');
+  document.getElementById('stat-orders').textContent = oc ?? 0;
+
+  // Low stock
+  if (['admin','warehouse','sales'].includes(role)) {
+    const { count: sc } = await sb.from('inventory').select('*', { count:'exact', head:true })
+      .filter('qty_available', 'lte', 'reorder_level').eq('is_active', true);
+    document.getElementById('stat-stock').textContent = sc ?? 0;
+  } else {
+    document.getElementById('stat-stock-card').style.display = 'none';
+  }
+}
+
+// ── PAGE CONTENT BUILDERS ───────────────────────────────────
+function loadCustomersPage(role) {
+  if (!['admin','finance','sales'].includes(role)) return;
+  document.getElementById('customers-content').innerHTML = `
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-title">All Customers</div>
+        <div class="table-tools">
+          <div class="search-box">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l4 4"/></svg>
+            <input type="text" placeholder="Search..." oninput="searchCustomers(this.value)"/>
+          </div>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>ID</th><th>Company</th><th>Contact</th><th>Credit Limit</th><th>Balance</th><th>Agent</th><th>Status</th></tr></thead>
+        <tbody id="customers-tbody"><tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Loading...</td></tr></tbody>
+      </table>
+    </div>`;
+  fetchCustomers();
+}
+
+async function fetchCustomers(search='') {
+  let q = sb.from('customers').select('*').order('company_name').limit(50);
+  if (search) q = q.ilike('company_name', `%${search}%`);
+  const { data } = await q;
+  const tbody = document.getElementById('customers-tbody');
+  if (!tbody) return;
+  if (!data || !data.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">No customers found. Data will appear after AutoCount sync in Phase 2.</td></tr>'; return; }
+  tbody.innerHTML = data.map(c => `
+    <tr>
+      <td class="mono">${c.cust_id || c.customer_code || '—'}</td>
+      <td style="font-weight:500">${c.company_name}</td>
+      <td>${c.contact_person || '—'}</td>
+      <td>RM ${(c.credit_limit||0).toLocaleString()}</td>
+      <td style="color:${c.current_balance > c.credit_limit*0.8 ? 'var(--red)' : 'var(--accent)'}">RM ${(c.current_balance||0).toLocaleString()}</td>
+      <td>${c.agent_code || '—'}</td>
+      <td><span class="badge ${c.is_active ? 'b-green' : 'b-gray'}">${c.is_active ? 'Active' : 'Inactive'}</span></td>
+    </tr>`).join('');
+}
+function searchCustomers(v) { fetchCustomers(v); }
+
+function loadInvoicesPage(role) {
+  if (!['admin','finance','sales'].includes(role)) return;
+  document.getElementById('invoices-content').innerHTML = `
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-title">Invoices</div>
+        <div class="table-tools">
+          <div class="search-box">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l4 4"/></svg>
+            <input type="text" placeholder="Search invoice..."/>
+          </div>
+          <select class="filter-sel" onchange="filterInvoiceStatus(this.value)">
+            <option value="">All Status</option>
+            <option value="paid">Paid</option>
+            <option value="pending">Pending</option>
+            <option value="overdue">Overdue</option>
+          </select>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Invoice No</th><th>Customer</th><th>Date</th><th>Due Date</th><th>Total (RM)</th><th>Agent</th><th>Status</th></tr></thead>
+        <tbody id="invoices-tbody"><tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Loading...</td></tr></tbody>
+      </table>
+    </div>`;
+  fetchInvoices();
+}
+
+async function fetchInvoices(statusFilter='') {
+  let q = sb.from('invoices').select('*').order('invoice_date', { ascending:false }).limit(50);
+  if (statusFilter) q = q.eq('status', statusFilter);
+  if (currentProfile.role === 'sales') q = q.eq('sales_agent', currentProfile.department);
+  const { data } = await q;
+  const tbody = document.getElementById('invoices-tbody');
+  if (!tbody) return;
+  if (!data || !data.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">No invoices found. Data will appear after AutoCount sync in Phase 2.</td></tr>'; return; }
+  const statusBadge = { paid:'b-green', pending:'b-amber', overdue:'b-red', draft:'b-gray', cancelled:'b-gray' };
+  tbody.innerHTML = data.map(i => `
+    <tr>
+      <td class="mono">${i.inv_id || i.invoice_no}</td>
+      <td>${i.customer_name || '—'}</td>
+      <td>${i.invoice_date ? new Date(i.invoice_date).toLocaleDateString('en-MY') : '—'}</td>
+      <td>${i.due_date ? new Date(i.due_date).toLocaleDateString('en-MY') : '—'}</td>
+      <td style="font-weight:500">RM ${(i.total_amount||0).toLocaleString()}</td>
+      <td>${i.sales_agent || '—'}</td>
+      <td><span class="badge ${statusBadge[i.status]||'b-gray'}">${i.status}</span></td>
+    </tr>`).join('');
+}
+function filterInvoiceStatus(v) { fetchInvoices(v); }
+
+function loadOrdersPage(role) {
+  if (!['admin','finance','sales','warehouse'].includes(role)) return;
+  document.getElementById('orders-content').innerHTML = `
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-title">Sales Orders</div>
+        <div class="table-tools">
+          <div class="search-box">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l4 4"/></svg>
+            <input type="text" placeholder="Search order..."/>
+          </div>
+          <select class="filter-sel" onchange="filterOrderStatus(this.value)">
+            <option value="">All Status</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="processing">Processing</option>
+            <option value="shipped">Shipped</option>
+            <option value="delivered">Delivered</option>
+          </select>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Order No</th><th>Customer</th><th>Order Date</th><th>Delivery Date</th><th>Total (RM)</th><th>Agent</th><th>Status</th></tr></thead>
+        <tbody id="orders-tbody"><tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Loading...</td></tr></tbody>
+      </table>
+    </div>`;
+  fetchOrders();
+}
+
+async function fetchOrders(statusFilter='') {
+  let q = sb.from('sales_orders').select('*').order('order_date', { ascending:false }).limit(50);
+  if (statusFilter) q = q.eq('status', statusFilter);
+  if (currentProfile.role === 'sales') q = q.eq('sales_agent', currentProfile.department);
+  const { data } = await q;
+  const tbody = document.getElementById('orders-tbody');
+  if (!tbody) return;
+  if (!data || !data.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">No orders found. Data will appear after AutoCount sync in Phase 2.</td></tr>'; return; }
+  const statusBadge = { draft:'b-gray', confirmed:'b-blue', processing:'b-amber', shipped:'b-blue', delivered:'b-green', cancelled:'b-gray' };
+  tbody.innerHTML = data.map(o => `
+    <tr>
+      <td class="mono">${o.so_id || o.order_no}</td>
+      <td>${o.customer_name || '—'}</td>
+      <td>${o.order_date ? new Date(o.order_date).toLocaleDateString('en-MY') : '—'}</td>
+      <td>${o.delivery_date ? new Date(o.delivery_date).toLocaleDateString('en-MY') : '—'}</td>
+      <td style="font-weight:500">RM ${(o.total_amount||0).toLocaleString()}</td>
+      <td>${o.sales_agent || '—'}</td>
+      <td><span class="badge ${statusBadge[o.status]||'b-gray'}">${o.status}</span></td>
+    </tr>`).join('');
+}
+function filterOrderStatus(v) { fetchOrders(v); }
+
+function loadInventoryPage(role) {
+  if (!['admin','warehouse','sales'].includes(role)) return;
+  document.getElementById('inventory-content').innerHTML = `
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-title">Stock List</div>
+        <div class="table-tools">
+          <div class="search-box">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l4 4"/></svg>
+            <input type="text" placeholder="Search item..."/>
+          </div>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Code</th><th>Item Name</th><th>Category</th><th>On Hand</th><th>Available</th><th>Reorder Level</th><th>Status</th></tr></thead>
+        <tbody id="inventory-tbody"><tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Loading...</td></tr></tbody>
+      </table>
+    </div>`;
+  fetchInventory();
+}
+
+async function fetchInventory() {
+  const { data } = await sb.from('inventory').select('*').order('item_name').limit(50);
+  const tbody = document.getElementById('inventory-tbody');
+  if (!tbody) return;
+  if (!data || !data.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">No inventory found. Data will appear after AutoCount sync in Phase 2.</td></tr>'; return; }
+  tbody.innerHTML = data.map(item => {
+    const avail = item.qty_available ?? (item.qty_on_hand - item.qty_reserved);
+    const pct = item.reorder_level > 0 ? Math.min(100, (avail / (item.reorder_level*3))*100) : 100;
+    const status = avail <= 0 ? ['b-red','Out of Stock'] : avail <= item.reorder_level ? ['b-amber','Low Stock'] : ['b-green','OK'];
+    const barClass = avail <= 0 ? 'sf-empty' : avail <= item.reorder_level ? 'sf-low' : 'sf-ok';
+    return `<tr>
+      <td class="mono">${item.itm_id || item.item_code}</td>
+      <td style="font-weight:500">${item.item_name}</td>
+      <td>${item.category || '—'}</td>
+      <td>${item.qty_on_hand ?? 0}</td>
+      <td style="font-weight:500">${avail}</td>
+      <td>${item.reorder_level ?? 0}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="stock-bar"><div class="stock-fill ${barClass}" style="width:${pct}%"></div></div>
+          <span class="badge ${status[0]}">${status[1]}</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── USERS PAGE ──────────────────────────────────────────────
+async function loadUsersPage() {
+  const { data } = await sb.from('users').select('*').order('created_at');
+  const tbody = document.getElementById('users-tbody');
+  if (!tbody || !data) return;
+  renderUsersTable(data);
+}
+
+function renderUsersTable(data) {
+  const tbody = document.getElementById('users-tbody');
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">No users found.</td></tr>'; return; }
+  const roleClass = { admin:'rt-admin', finance:'rt-finance', sales:'rt-sales', warehouse:'rt-warehouse' };
+  tbody.innerHTML = data.map(u => `
+    <tr>
+      <td class="mono">${u.user_id || '—'}</td>
+      <td style="font-weight:500">${u.full_name}</td>
+      <td style="color:var(--text2)">${u.email}</td>
+      <td><span class="role-tag ${roleClass[u.role]||''}">${u.role}</span></td>
+      <td>${u.department || '—'}</td>
+      <td style="color:var(--text3)">${u.last_login ? new Date(u.last_login).toLocaleDateString('en-MY') : 'Never'}</td>
+      <td><span class="badge ${u.is_active ? 'b-green' : 'b-gray'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
+      <td>
+        <button class="btn" style="padding:3px 10px;font-size:11px" onclick="toggleUserActive('${u.id}',${u.is_active})">
+          ${u.is_active ? 'Deactivate' : 'Activate'}
+        </button>
+      </td>
+    </tr>`).join('');
+}
+
+async function filterUsers(search) {
+  const { data } = await sb.from('users').select('*').ilike('full_name', `%${search}%`).order('created_at');
+  if (data) renderUsersTable(data);
+}
+
+async function toggleUserActive(userId, currentStatus) {
+  await sb.from('users').update({ is_active: !currentStatus }).eq('id', userId);
+  loadUsersPage();
+}
+
+// ── ADD USER ────────────────────────────────────────────────
+async function addUser() {
+  const id   = document.getElementById('newUserId').value.trim();
+  const name = document.getElementById('newUserName').value.trim();
+  const email= document.getElementById('newUserEmail').value.trim();
+  const role = document.getElementById('newUserRole').value;
+  const dept = document.getElementById('newUserDept').value.trim();
+  const msg  = document.getElementById('addUserMsg');
+
+  if (!id || !name || !email) {
+    showMsg(msg, 'Please fill in all required fields.', 'error'); return;
+  }
+
+  const { error } = await sb.from('users').insert({ id, full_name:name, email, role, department:dept, is_active:true });
+
+  if (error) {
+    showMsg(msg, error.message, 'error');
+  } else {
+    // Backfill user_id
+    await sb.rpc('update_user_ids_if_null').catch(()=>{});
+    showMsg(msg, 'User created successfully!', 'success');
+    setTimeout(() => { closeModal('addUserModal'); loadUsersPage(); }, 1200);
+  }
+}
+
+// ── PROFILE SAVE ────────────────────────────────────────────
+async function saveProfile() {
+  const name  = document.getElementById('profileFullName').value.trim();
+  const phone = document.getElementById('profilePhone').value.trim();
+  const msg   = document.getElementById('profileMsg');
+
+  if (!name) { showMsg(msg, 'Name cannot be empty.', 'error'); return; }
+
+  const { error } = await sb.from('users').update({ full_name:name, phone }).eq('id', currentUser.id);
+
+  if (error) {
+    showMsg(msg, error.message, 'error');
+  } else {
+    showMsg(msg, 'Profile updated successfully!', 'success');
+    document.getElementById('userName').textContent = name;
+    document.getElementById('profileName').textContent = name;
+    const initials = name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
+    document.getElementById('userAvatar').textContent    = initials;
+    document.getElementById('profileAvatar').textContent = initials;
+  }
+}
+
+function showMsg(el, text, type) {
+  el.style.display = 'block';
+  el.style.background = type === 'success' ? 'var(--accent-l)' : 'var(--red-l)';
+  el.style.color = type === 'success' ? 'var(--accent)' : 'var(--red)';
+  el.style.border = `1px solid ${type === 'success' ? '#B0D8BC' : '#F0C0C0'}`;
+  el.style.borderRadius = '8px';
+  el.style.padding = '10px 14px';
+  el.textContent = text;
+}
+
+// ── SIGN OUT ────────────────────────────────────────────────
+async function handleSignOut() {
+  await sb.auth.signOut();
+  window.location.href = 'login.html';
+}
+
+// ── PAGE NAV ────────────────────────────────────────────────
+function showPage(id, navEl) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-' + id);
+  if (page) page.classList.add('active');
+  if (navEl) navEl.classList.add('active');
+  else {
+    const navEl2 = document.getElementById('nav-' + id);
+    if (navEl2) navEl2.classList.add('active');
+  }
+  document.getElementById('profileMenu').classList.remove('open');
+}
+
+// ── MODALS ───────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function closeOnOverlay(e, id) { if (e.target === document.getElementById(id)) closeModal(id); }
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.overlay.open').forEach(m => m.classList.remove('open'));
+});
+
+// ── PROFILE MENU ─────────────────────────────────────────────
+function toggleProfileMenu() {
+  document.getElementById('profileMenu').classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  const menu = document.getElementById('profileMenu');
+  const pill = document.querySelector('.user-pill');
+  if (!menu.contains(e.target) && !pill.contains(e.target)) {
+    menu.classList.remove('open');
+  }
+});
+</script>
+</body>
+</html>

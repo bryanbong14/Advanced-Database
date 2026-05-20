@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DataPortal — Login</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="assets/css/style.css"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+
+</head>
+<body>
+
+<div class="login-wrap">
+  <div class="logo">
+    <div class="logo-box">
+      <svg viewBox="0 0 22 22" fill="none">
+        <rect x="1" y="1" width="8" height="8" rx="2" fill="white"/>
+        <rect x="13" y="1" width="8" height="8" rx="2" fill="white" opacity=".7"/>
+        <rect x="1" y="13" width="8" height="8" rx="2" fill="white" opacity=".7"/>
+        <rect x="13" y="13" width="8" height="8" rx="2" fill="white" opacity=".4"/>
+      </svg>
+    </div>
+    <div class="logo-text">
+      <div class="logo-name">DataPortal</div>
+      <div class="logo-sub">Company Management System</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <!-- Login Form -->
+    <div id="loginForm">
+      <div class="card-title">Welcome back</div>
+      <div class="card-sub">Sign in with your company account</div>
+
+      <div class="error-msg" id="errorMsg">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="8" cy="8" r="7"/><path d="M8 5v4M8 11v.5"/>
+        </svg>
+        <span id="errorText">Invalid email or password.</span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input class="form-input" type="email" id="emailInput" autocomplete="email"/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <div class="input-wrap">
+          <input class="form-input" type="password" id="passwordInput" autocomplete="current-password" style="padding-right:42px"/>
+          <button class="pw-toggle" onclick="togglePassword()" type="button" tabindex="-1">
+            <svg id="eyeIcon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/>
+              <circle cx="8" cy="8" r="2"/>
+            </svg>
+          </button>
+        </div>
+        <div class="forgot"><a href="#" onclick="showForgot(event)">Forgot password?</a></div>
+      </div>
+
+      <button class="btn-login" id="loginBtn" onclick="handleLogin()">
+        <div class="spinner"></div>
+        <span class="btn-text">Sign In</span>
+      </button>
+    </div>
+
+    <!-- Success screen (shown briefly before redirect) -->
+    <div class="success-screen" id="successScreen">
+      <div class="success-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 6L9 17l-5-5"/>
+        </svg>
+      </div>
+      <div class="success-title">Signed in successfully</div>
+      <div class="success-sub">Redirecting to your dashboard...</div>
+    </div>
+
+    <!-- Forgot password screen -->
+    <div id="forgotForm" style="display:none">
+      <div class="card-title">Reset Password</div>
+      <div class="card-sub">Enter your email and we'll send a reset link</div>
+
+      <div class="error-msg" id="resetMsg" style="background:var(--accent-l);border-color:#B0D8BC;color:var(--accent)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="8" cy="8" r="7"/><path d="M8 5v4M8 11v.5"/>
+        </svg>
+        <span id="resetText"></span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input class="form-input" type="email" id="resetEmail"/>
+      </div>
+
+      <button class="btn-login" id="resetBtn" onclick="handleReset()">
+        <div class="spinner"></div>
+        <span class="btn-text">Send Reset Link</span>
+      </button>
+
+      <div style="text-align:center;margin-top:16px">
+        <a href="#" onclick="showLogin(event)" style="font-size:13px;color:var(--accent);text-decoration:none">← Back to Sign In</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    Internal use only — <span id="year"></span> Your Company Sdn Bhd
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://ojojzrrtclsrzwsvboyx.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qb2p6cnJ0Y2xzcnp3c3Zib3l4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMjc3MTAsImV4cCI6MjA5NDcwMzcxMH0.uU5rTuhAO0FHcZOR_Tr2uo4RMXamwc4T-r8xbGC9PIk';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+document.getElementById('year').textContent = new Date().getFullYear();
+
+// Enter key support
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    if (document.getElementById('loginForm').style.display !== 'none' &&
+        document.getElementById('loginForm').style.display !== '') {
+      handleLogin();
+    } else if (document.getElementById('forgotForm').style.display === 'block') {
+      handleReset();
+    } else {
+      handleLogin();
+    }
+  }
+});
+
+// Check if already logged in
+window.addEventListener('load', async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) window.location.href = 'dashboard.html';
+});
+
+async function handleLogin() {
+  const email    = document.getElementById('emailInput').value.trim();
+  const password = document.getElementById('passwordInput').value;
+  const btn      = document.getElementById('loginBtn');
+  const errMsg   = document.getElementById('errorMsg');
+
+  // Basic validation
+  if (!email || !password) {
+    showError('Please enter your email and password.');
+    return;
+  }
+
+  // Loading state
+  btn.classList.add('loading');
+  btn.disabled = true;
+  errMsg.classList.remove('show');
+
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      showError(error.message === 'Invalid login credentials'
+        ? 'Incorrect email or password. Please try again.'
+        : error.message);
+      return;
+    }
+
+    // Check user exists in public.users and is active
+    const { data: userData, error: userError } = await sb.from('users')
+      .select('user_id, full_name, role, is_active')
+      .eq('id', data.user.id)
+      .single();
+
+    if (userError || !userData) {
+      await sb.auth.signOut();
+      showError('Your account is not set up yet. Please contact your administrator.');
+      return;
+    }
+
+    if (!userData.is_active) {
+      await sb.auth.signOut();
+      showError('Your account has been deactivated. Please contact your administrator.');
+      return;
+    }
+
+    // Update last_login
+    await sb.from('users').update({ last_login: new Date().toISOString() }).eq('id', data.user.id);
+
+    // Show success then redirect
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('successScreen').classList.add('show');
+    setTimeout(() => { window.location.href = 'dashboard.html'; }, 1200);
+
+  } catch (err) {
+    showError('Something went wrong. Please try again.');
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+async function handleReset() {
+  const email = document.getElementById('resetEmail').value.trim();
+  const btn   = document.getElementById('resetBtn');
+
+  if (!email) {
+    document.getElementById('resetMsg').classList.add('show');
+    document.getElementById('resetText').textContent = 'Please enter your email address.';
+    return;
+  }
+
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + '/login.html'
+  });
+
+  btn.classList.remove('loading');
+  btn.disabled = false;
+
+  document.getElementById('resetMsg').classList.add('show');
+  if (error) {
+    document.getElementById('resetText').textContent = error.message;
+  } else {
+    document.getElementById('resetText').textContent = 'Reset link sent! Check your email inbox.';
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  document.getElementById('errorText').textContent = msg;
+  el.classList.add('show');
+  document.getElementById('emailInput').classList.add('error');
+  document.getElementById('passwordInput').classList.add('error');
+}
+
+function togglePassword() {
+  const input = document.getElementById('passwordInput');
+  const icon  = document.getElementById('eyeIcon');
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.innerHTML = `<path d="M2 2l12 12M6.5 6.6A5 5 0 0 0 8 13c4.5 0 7-5 7-5a12.5 12.5 0 0 0-2.4-3M4.2 4.3C2.6 5.5 1 8 1 8s2.5 5 7 5a6.8 6.8 0 0 0 3.8-1.1"/><circle cx="8" cy="8" r="2" fill="none"/>`;
+  } else {
+    input.type = 'password';
+    icon.innerHTML = `<path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2"/>`;
+  }
+}
+
+function showForgot(e) {
+  e.preventDefault();
+  document.getElementById('loginForm').style.display = 'none';
+  document.getElementById('forgotForm').style.display = 'block';
+}
+
+function showLogin(e) {
+  e.preventDefault();
+  document.getElementById('forgotForm').style.display = 'none';
+  document.getElementById('loginForm').style.display = 'block';
+  document.getElementById('resetMsg').classList.remove('show');
+}
+</script>
+</body>
+</html>
