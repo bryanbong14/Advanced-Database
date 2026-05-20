@@ -100,3 +100,14 @@ tbody td            { padding: 10px 18px; vertical-align: middle; }
 .sf-ok      { background: var(--accent); }
 .sf-low     { background: var(--amber); }
 .sf-empty   { background: var(--red); }
+
+#users-table {
+       table-layout: fixed;
+       width: 100%;
+     }
+     #users-table td,
+     #users-table th {
+       overflow: hidden;
+       text-overflow: ellipsis;
+       white-space: nowrap;
+     }
