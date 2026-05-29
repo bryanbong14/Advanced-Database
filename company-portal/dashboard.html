@@ -210,12 +210,7 @@
   <div id="page-orders" class="page">
     <div class="topbar">
       <div class="topbar-left"><div class="topbar-title">Sales Orders</div><div class="topbar-sub">Synced from AutoCount</div></div>
-      <div class="topbar-right">
-        <button class="btn btn-primary" onclick="openModal('addOrderModal')">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v12M2 8h12"/></svg>
-          New Order
-        </button>
-      </div>
+
     </div>
     <div style="padding:24px" id="orders-content">
       <div class="no-access">
@@ -285,7 +280,7 @@
             </div>
           </div>
         </div>
-        <table id="user-table">
+        <table id="users-table">
           <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th>Last Login</th><th>Status</th><th></th></tr></thead>
           <tbody id="users-tbody">
             <tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text3)">Loading users...</td></tr>
@@ -356,44 +351,108 @@
 </main>
 
 <!-- ══ MODALS ══ -->
+<!-- ============================================================
+  REPLACE your existing "Add User" modal in dashboard.html
+  with this one. Find the div with id="addUserModal" and
+  replace the entire thing.
+  ============================================================ -->
 
-<!-- Add User -->
 <div class="overlay" id="addUserModal" onclick="closeOnOverlay(event,'addUserModal')">
   <div class="modal">
     <div class="modal-hdr">
       <div class="modal-title">Add New Staff User</div>
-      <div class="modal-close" onclick="closeModal('addUserModal')">✕</div>
+      <div class="modal-close" onclick="closeModal('addUserModal');resetAddUserForm()">✕</div>
     </div>
     <div class="modal-body">
-      <div class="alert info" style="margin-bottom:16px">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="7"/><path d="M8 5v4M8 11v.5"/></svg>
-        First create the user in <strong>Supabase Auth → Users</strong>, then paste their UUID here.
-      </div>
-      <div class="form-group">
-        <label class="form-label">Auth UUID (from Supabase)</label>
-        <input class="form-input" type="text" id="newUserId" placeholder="paste-uuid-here" style="font-family:var(--mono);font-size:12px"/>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">Full Name</label><input class="form-input" type="text" id="newUserName" placeholder="Full Name"/></div>
-        <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" id="newUserEmail" placeholder="email@company.com"/></div>
-      </div>
+
+      <!-- Name + Email -->
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Role</label>
-          <select class="form-input" id="newUserRole">
-            <option value="finance">Finance</option>
+          <label class="form-label">Full Name <span style="color:var(--red)">*</span></label>
+          <input class="form-input" type="text" id="newUserName" placeholder="e.g. Ahmad Danial"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Address <span style="color:var(--red)">*</span></label>
+          <input class="form-input" type="email" id="newUserEmail" placeholder="ahmad@company.com"/>
+        </div>
+      </div>
+
+      <!-- Role + Department -->
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Role <span style="color:var(--red)">*</span></label>
+          <select class="form-input" id="newUserRole" onchange="updateRoleHint(this.value)">
             <option value="sales">Sales</option>
+            <option value="finance">Finance</option>
             <option value="warehouse">Warehouse</option>
             <option value="admin">Admin</option>
           </select>
         </div>
-        <div class="form-group"><label class="form-label">Department / Agent Code</label><input class="form-input" type="text" id="newUserDept" placeholder="e.g. AG01, Finance"/></div>
+        <div class="form-group">
+          <label class="form-label">Department / Agent Code</label>
+          <input class="form-input" type="text" id="newUserDept" placeholder="e.g. AG01, Finance"/>
+        </div>
       </div>
-      <div id="addUserMsg" style="display:none;margin-top:4px;font-size:13px;padding:10px 14px;border-radius:8px"></div>
+
+      <!-- Role hint -->
+      <div id="role-hint" style="
+        font-size:12px;color:var(--text3);
+        background:var(--surface2);border-radius:6px;
+        padding:8px 12px;margin-bottom:14px;
+        border-left:3px solid var(--border2);
+      ">
+        Sales staff can view their own invoices and orders, and check inventory.
+      </div>
+
+      <!-- Phone -->
+      <div class="form-group">
+        <label class="form-label">Phone Number</label>
+        <input class="form-input" type="text" id="newUserPhone" placeholder="01X-XXXXXXXX"/>
+      </div>
+
+      <!-- Password -->
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Password <span style="color:var(--red)">*</span></label>
+          <input class="form-input" type="password" id="newUserPassword"
+            placeholder="Min. 8 characters"
+            oninput="updatePasswordStrength(this.value)"/>
+          <!-- Strength bar -->
+          <div style="margin-top:6px">
+            <div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden">
+              <div id="pw-strength-bar" style="height:100%;width:0%;transition:all .3s;border-radius:2px"></div>
+            </div>
+            <span id="pw-strength-label" style="font-size:11px"></span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm Password <span style="color:var(--red)">*</span></label>
+          <input class="form-input" type="password" id="newUserPasswordConfirm"
+            placeholder="Re-enter password"/>
+        </div>
+      </div>
+
+      <!-- Note -->
+      <div style="
+        font-size:12px;color:var(--text2);
+        background:var(--accent-l);border-radius:6px;
+        padding:10px 12px;margin-bottom:4px;
+        border-left:3px solid var(--accent);
+      ">
+        The staff member will receive a login email. They can change their password after first login via the <strong>Forgot Password</strong> link.
+      </div>
+
+      <!-- Message -->
+      <div id="addUserMsg" style="display:none;margin-top:12px;font-size:13px;
+        padding:10px 14px;border-radius:8px"></div>
+
     </div>
     <div class="modal-footer">
-      <button class="btn" onclick="closeModal('addUserModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="addUser()">Create User</button>
+      <button class="btn" onclick="closeModal('addUserModal');resetAddUserForm()">Cancel</button>
+      <button class="btn btn-primary" id="addUserBtn" onclick="addUser()">
+        <div class="btn-spinner"></div>
+        <span class="btn-text">Create User</span>
+      </button>
     </div>
   </div>
 </div>
@@ -425,6 +484,7 @@
 
 <!-- ══ SCRIPTS — load order matters ══ -->
 <script src="assets/js/supabase.js"></script>
+<script src="assets/js/permissions.js"></script>
 
 <script src="assets/js/dashboard.js"></script>
 <script src="assets/js/customers.js"></script>
@@ -432,7 +492,6 @@
 <script src="assets/js/orders.js"></script>
 <script src="assets/js/inventory.js"></script>
 <script src="assets/js/users.js"></script>
-<script src="assets/js/permissions.js"></script>
 
 <script src="assets/js/auth.js"></script>
 
